@@ -16,7 +16,7 @@ public class FlashlighSpawn : MonoBehaviour
     }
     void Start()
     {
-        
+        SpawnFlashLight();
     }
     void Update()
     {
@@ -37,6 +37,6 @@ public class FlashlighSpawn : MonoBehaviour
     {
         if (spawnPoints.Length == 0 || flashlightPrefab == null) return;
         Transform point = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        Instantiate(flashlightPrefab, point.position, Quaternion.identity);
+        Instantiate(flashlightPrefab, point.position, flashlightPrefab.transform.rotation);
     }
 }
