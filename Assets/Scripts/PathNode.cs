@@ -12,7 +12,7 @@ public class PathNode
     public int hCost;
     public int fCost => gCost + hCost;
 
-    public PathNode (bool isWall, Vector3 worldPositon, int gridX, int gridZ)
+    public PathNode (bool isWall, Vector3 worldPosition, int gridX, int gridZ)
     {
         this.isWall = isWall;
         this.worldPosition = worldPosition;
