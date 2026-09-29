@@ -2190,7 +2190,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 1081377753}
-  smoothSpeed: 8
+  localOffset: {x: 0, y: 6, z: -6}
+  lookHeight: 1
+  positionSmooth: 8
+  yawSmooth: 2
 --- !u!1001 &333540566
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -7117,6 +7120,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 5
+  cameraTransform: {fileID: 330585546}
+  rotateSpeed: 10
 --- !u!54 &1081377750
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -8704,6 +8709,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   moveSpeed: 5
+  cameraTransform: {fileID: 0}
+  rotateSpeed: 10
 --- !u!54 &1364644442
 Rigidbody:
   m_ObjectHideFlags: 0

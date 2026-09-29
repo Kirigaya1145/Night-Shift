@@ -2,34 +2,33 @@ using UnityEngine;
 
 public class CameraFollow : MonoBehaviour
 {
-    public Transform target;        // Player
-    public float smoothSpeed = 8f; 
+    public Transform target;
+    public Vector3 localOffset = new Vector3(0, 6, -6);
+    public float lookHeight = 1f;
+    public float positionSmooth = 8f;
+    public float yawSmooth = 4f;
 
-    Vector3 offset;
+    float currentYaw;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        // Offset diambil dari posisi kamera sekarang di Scene,
-        // jadi tinggal atur posisi kamera sesuka hati sebelum Play
-        offset = transform.position - target.position;
+        if (target != null) currentYaw = target.eulerAngles.y;
     }
 
-    // LateUpdate dipanggil setelah semua gerakan selesai, supaya kamera tidak bergetar
     void LateUpdate()
     {
         if (target == null) return;
 
-        Vector3 desiredPosition = target.position + offset;
+        // Karena Player.cs sekarang cuma mengubah rotasinya sendiri saat gerak maju,
+        // target.eulerAngles.y di sini juga jadi "diam" saat mundur/menyamping,
+        // jadi currentYaw ikut berhenti dan tidak muter terus.
+        currentYaw = Mathf.LerpAngle(currentYaw, target.eulerAngles.y, yawSmooth * Time.deltaTime);
 
-        if (smoothSpeed <= 0f)
-        {
-            transform.position = desiredPosition;
-        }
-        else
-        {
-            transform.position = Vector3.Lerp(transform.position, desiredPosition, smoothSpeed * Time.deltaTime);
-        }
-        // Rotasi sengaja tidak diubah, jadi sudut pandang tetap
+        Quaternion yawRotation = Quaternion.Euler(0, currentYaw, 0);
+        Vector3 desiredPosition = target.position + yawRotation * localOffset;
+        transform.position = Vector3.Lerp(transform.position, desiredPosition, positionSmooth * Time.deltaTime);
+
+        Vector3 lookPoint = target.position + Vector3.up * lookHeight;
+        transform.rotation = Quaternion.LookRotation(lookPoint - transform.position, Vector3.up);
     }
 }

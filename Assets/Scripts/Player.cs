@@ -6,42 +6,44 @@ using UnityEngine.InputSystem;
 public class Player : MonoBehaviour
 {
     public float moveSpeed = 5;
-    Vector3 moveVec = Vector3.zero;
+    Vector2 rawInput = Vector2.zero;
     Rigidbody rb;
     Animator animator;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    public Transform cameraTransform;
+    public float rotateSpeed = 10f;
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         animator = GetComponentInChildren<Animator>();
     }
 
-    // Update is called once per frame
     void FixedUpdate()
     {
-        rb.linearVelocity = new Vector3(moveVec.x * moveSpeed, rb.linearVelocity.y, moveVec.z * moveSpeed);
+        Vector3 camForward = cameraTransform.forward;
+        camForward.y = 0;
+        camForward.Normalize();
 
-        Vector3 flat = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+        Vector3 camRight = cameraTransform.right;
+        camRight.y = 0;
+        camRight.Normalize();
 
-        // Bool "Run": true kalau sedang bergerak
-        if (animator != null) animator.SetBool("Run", flat.sqrMagnitude > 0.1f);
+        Vector3 worldMove = camForward * rawInput.y + camRight * rawInput.x;
 
-        // Putar model menghadap arah gerak
-        if (flat.sqrMagnitude > 0.05f)
+        rb.linearVelocity = new Vector3(worldMove.x * moveSpeed, rb.linearVelocity.y, worldMove.z * moveSpeed);
+
+        if (animator != null) animator.SetBool("Run", worldMove.sqrMagnitude > 0.01f);
+
+        if (worldMove.sqrMagnitude > 0.01f && rawInput.y > 0.05f)
         {
-            Quaternion targetRot = Quaternion.LookRotation(flat.normalized, Vector3.up);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.fixedDeltaTime);
+            Quaternion targetRot = Quaternion.LookRotation(worldMove.normalized, Vector3.up);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotateSpeed * Time.fixedDeltaTime);
         }
     }
 
-    // Dipanggil otomatis oleh Player Input component (Behavior: Send Messages)
-    // saat action "Move" di Input Actions asset ter-trigger
     public void OnMove(InputValue input)
     {
-        Vector2 inputVec = input.Get<Vector2>();
-        // Input Y (dari WASD/stick) dipetakan ke sumbu Z dunia 3D,
-        // sumbu Y dibiarkan 0 karena itu urusan gravity/Rigidbody, bukan input gerak
-        moveVec = new Vector3(inputVec.x, 0, inputVec.y);
+        rawInput = input.Get<Vector2>();
     }
 }
