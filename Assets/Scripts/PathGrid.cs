@@ -66,7 +66,7 @@ public class PathGrid : MonoBehaviour
     }
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireCube(transform.position, new Vector3(gridWorldSize.x, 1f, gridSizeZ));
+        Gizmos.DrawWireCube(transform.position, new Vector3(gridWorldSize.x, 1f, gridWorldSize.y));
         if(grid == null) return;
         foreach (PathNode n in grid)
         {
