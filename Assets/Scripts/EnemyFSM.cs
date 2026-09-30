@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,8 +12,15 @@ public class EnemyFSM : MonoBehaviour
     public string speedParam = "Speed";
 
     //Decision Making - Chase
-    public float chaseDetecRad = 8f;
-    public float loseChaseRad = 11f;
+    public float chaseDetecRad = 14f;
+    public float loseChaseRad = 18f;
+
+    //Decision Making - Search
+    public float searchDuration = 4f;
+    public float searchSpeedMult = 1.6f;
+    Vector3 lastKnownPos;
+    bool isSearching;
+    float searchTimer;
 
     //Decision Making - Flee
     public float fleeSightRad = 10f;
@@ -52,6 +58,8 @@ public class EnemyFSM : MonoBehaviour
     List<Vector3> currentPath;
     int pathIndex;
     float pathTimer;
+    bool hasSpeedParam = false;
+    bool speedParamChecked = false;
 
     void Start()
     {
@@ -69,17 +77,15 @@ public class EnemyFSM : MonoBehaviour
             case State.Chase: UpdateSeek(); break;
             case State.Flee: UpdateFlee(); break;
         }
-        rb.AddForce(moveVec * moveSpd);
+        
+        Vector3 desiredVelocity = Vector3.ClampMagnitude(moveVec * moveSpd, GetCurrentMaxSpeed());
+        rb.linearVelocity = new Vector3(desiredVelocity.x, rb.linearVelocity.y, desiredVelocity.z);
 
-        Vector3 flatVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
-        flatVelocity = Vector3.ClampMagnitude(flatVelocity, GetCurrentMaxSpeed());
-        rb.linearVelocity = new Vector3(flatVelocity.x, rb.linearVelocity.y, flatVelocity.z);
+        UpdateAnimator(desiredVelocity.magnitude);
 
-        UpdateAnimator(flatVelocity.magnitude);
-
-        if (flatVelocity.sqrMagnitude > 0.05f)
+        if (desiredVelocity.sqrMagnitude > 0.05f)
         {
-            Quaternion targetRot = Quaternion.LookRotation(flatVelocity.normalized, Vector3.up);
+            Quaternion targetRot = Quaternion.LookRotation(desiredVelocity.normalized, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.fixedDeltaTime);
         }
     }
@@ -87,6 +93,19 @@ public class EnemyFSM : MonoBehaviour
     {
         if (animator == null) return;
         animator.SetFloat(speedParam, currentSpeed);
+        if (!speedParamChecked)
+        {
+            foreach (var param in animator.parameters)
+            {
+                if (param.name == speedParam && param.type == AnimatorControllerParameterType.Float)
+                {
+                    hasSpeedParam = true;
+                    break;
+                }
+            }
+            speedParamChecked = true;
+        }
+        if (hasSpeedParam) animator.SetFloat(speedParam, currentSpeed);
     }
     float GetCurrentMaxSpeed()
     {
@@ -94,7 +113,7 @@ public class EnemyFSM : MonoBehaviour
         {
             State.Chase => chaseMaxSpd,
             State.Flee => fleeMaxSpd,
-            _ => wanderMaxSpd
+            _ => isSearching ? wanderMaxSpd * searchSpeedMult : wanderMaxSpd
         };
     }
     //Decision Making - Finite State Machine
@@ -106,17 +125,28 @@ public class EnemyFSM : MonoBehaviour
             return;
         }
         if (currentState == State.Flee) currentState = State.Wander;
+        
         Vector3 diff = target.transform.position - transform.position;
         diff.y = 0;
         float distToPlayer = diff.magnitude;
 
         if (currentState == State.Chase)
         {
-            if (distToPlayer > loseChaseRad) currentState = State.Wander;
+            if (distToPlayer > loseChaseRad)
+            {
+                lastKnownPos = target.transform.position;
+                isSearching = true;
+                searchTimer = searchDuration;
+                currentState = State.Wander;
+            }
         }
         else
         {
-            if (distToPlayer <= chaseDetecRad) currentState = State.Chase;
+            if (distToPlayer <= chaseDetecRad) 
+            { 
+                currentState = State.Chase; 
+                isSearching = false;
+            }
         }
     }
     bool CanSeePlayer()
@@ -134,6 +164,19 @@ public class EnemyFSM : MonoBehaviour
     //Wander Movement
     void UpdateWander()
     {
+        if (isSearching)
+        {
+            searchTimer -= Time.fixedDeltaTime;
+            if (searchTimer <= 0f)
+            {
+                isSearching = false; // benar-benar menyerah, lanjut wander acak
+            }
+            else
+            {
+                MoveAlongPathTo(lastKnownPos, wanderMaxSpd * searchSpeedMult);
+                return;
+            }
+        }
         currentPath = null;
 
         wanderTimer -= Time.fixedDeltaTime;
@@ -148,10 +191,14 @@ public class EnemyFSM : MonoBehaviour
     //Pathfinding + Movement AI - A* + Seek (state Chase)
     void UpdateSeek()
     {
+        MoveAlongPathTo(target.transform.position, chaseMaxSpd);
+    }
+    void MoveAlongPathTo(Vector3 destination, float speed)
+    {
         pathTimer -= Time.fixedDeltaTime;
         if (pathTimer <= 0f)
         {
-            currentPath = pathFinder.FindPath(transform.position, target.transform.position);
+            currentPath = pathFinder.FindPath(transform.position, destination);
             pathIndex = 0;
             pathTimer = pathCalculateInterval;
         }
@@ -185,12 +232,12 @@ public class EnemyFSM : MonoBehaviour
         else if (toWaypoint.magnitude < slowRad)
         {
             moveVec = toWaypoint.normalized;
-            moveSpd = chaseMaxSpd * toWaypoint.magnitude / slowRad;
+            moveSpd = speed * toWaypoint.magnitude / slowRad;
         }
         else
         {
             moveVec = toWaypoint.normalized;
-            moveSpd = chaseMaxSpd;
+            moveSpd = speed;
         }
     }
     //Movement AI - Flee
