@@ -14,6 +14,7 @@ public class EnemyFSM : MonoBehaviour
     //Decision Making - Chase
     public float chaseDetecRad = 14f;
     public float loseChaseRad = 18f;
+    public float catchDistance = 1.5f;
 
     //Decision Making - Search
     public float searchDuration = 4f;
@@ -61,6 +62,8 @@ public class EnemyFSM : MonoBehaviour
     bool hasSpeedParam = false;
     bool speedParamChecked = false;
 
+    public float waypointReachDist = 1f; // jarak untuk dianggap "sudah sampai"
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -71,6 +74,7 @@ public class EnemyFSM : MonoBehaviour
     void FixedUpdate()
     {
         EvaluateState();
+        CheckCatch();
         switch (currentState)
         {
             case State.Wander: UpdateWander(); break;
@@ -89,10 +93,16 @@ public class EnemyFSM : MonoBehaviour
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, 10f * Time.fixedDeltaTime);
         }
     }
+    void CheckCatch()
+    {
+        if (currentState != State.Chase || GameManager.Instance == null) return;
+        Vector3 d = target.transform.position - transform.position;
+        d.y = 0;
+        if (d.magnitude <= catchDistance) GameManager.Instance.Lose();
+    }
     void UpdateAnimator(float currentSpeed)
     {
         if (animator == null) return;
-        animator.SetFloat(speedParam, currentSpeed);
         if (!speedParamChecked)
         {
             foreach (var param in animator.parameters)
@@ -178,11 +188,30 @@ public class EnemyFSM : MonoBehaviour
             }
         }
         currentPath = null;
+        pathFinder.grid.ReportPath(this,currentPath);
 
         wanderTimer -= Time.fixedDeltaTime;
         if (wanderTimer <= 0f)
         {
             wanderAngle += Random.Range(-wanderRate, wanderRate);
+            wanderTimer = wanderCooldown;
+        }
+
+        Vector3 wanderDir = new Vector3(Mathf.Cos(wanderAngle), 0, Mathf.Sin(wanderAngle));
+        float probeDist = 2.2f;
+        if (pathFinder.grid.FreeDistance(transform.position, wanderDir, probeDist) < probeDist)
+        {
+            // terhalang: coba sudut acak sampai ketemu arah yang lapang (maks 12 percobaan)
+            for (int i = 0; i < 12; i++)
+            {
+                float a = Random.Range(0f, Mathf.PI * 2f);
+                Vector3 d = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+                if (pathFinder.grid.FreeDistance(transform.position, d, probeDist) >= probeDist)
+                {
+                    wanderAngle = a;
+                    break;
+                }
+            }
             wanderTimer = wanderCooldown;
         }
         moveVec = new Vector3(Mathf.Cos(wanderAngle), 0, Mathf.Sin(wanderAngle));
@@ -195,10 +224,13 @@ public class EnemyFSM : MonoBehaviour
     }
     void MoveAlongPathTo(Vector3 destination, float speed)
     {
+        // 1. Hitung ulang path secara berkala
         pathTimer -= Time.fixedDeltaTime;
         if (pathTimer <= 0f)
         {
             currentPath = pathFinder.FindPath(transform.position, destination);
+            if (currentPath == null) Debug.Log($"{name}: FindPath GAGAL, target mungkin di luar grid atau tidak ada rute");
+            pathFinder.grid.ReportPath(this, currentPath);
             pathIndex = 0;
             pathTimer = pathCalculateInterval;
         }
@@ -208,35 +240,34 @@ public class EnemyFSM : MonoBehaviour
             moveSpd = 0;
             return;
         }
-        Vector3 waypoint = currentPath[pathIndex];
-        Vector3 toWaypoint = waypoint - transform.position;
+        // 2. Lewati waypoint tengah yang sudah dekat
+        Vector3 toWaypoint = currentPath[pathIndex] - transform.position;
         toWaypoint.y = 0;
-        if (toWaypoint.magnitude < 0.5f)
+        while (pathIndex < currentPath.Count - 1 && toWaypoint.magnitude < waypointReachDist)
         {
             pathIndex++;
-            if (pathIndex >= currentPath.Count)
-            {
-                moveVec = Vector3.zero;
-                moveSpd = 0;
-                return;
-            }
-            waypoint = currentPath[pathIndex];
-            toWaypoint = waypoint - transform.position;
+            toWaypoint = currentPath[pathIndex] - transform.position;
             toWaypoint.y = 0;
         }
-        if (toWaypoint.magnitude < satisfactionRad)
+        // 3. Arah selalu menuju waypoint saat ini
+        moveVec = toWaypoint.normalized;
+        bool isLast = pathIndex == currentPath.Count - 1;
+        // 4. Seek + Arrive: melambat dan berhenti HANYA di waypoint terakhir
+        float dist = toWaypoint.magnitude;
+        bool chasing = currentState == State.Chase;
+        float stopRad = chasing ? 0.2f : satisfactionRad;   // saat Chase hampir tanpa arrive
+        float slow = chasing ? 1f : slowRad;
+        if (isLast && dist < satisfactionRad)
         {
             moveVec = Vector3.zero;
             moveSpd = 0;
         }
-        else if (toWaypoint.magnitude < slowRad)
+        else if (isLast && dist < slowRad)
         {
-            moveVec = toWaypoint.normalized;
-            moveSpd = speed * toWaypoint.magnitude / slowRad;
+            moveSpd = speed * dist / slowRad;
         }
         else
         {
-            moveVec = toWaypoint.normalized;
             moveSpd = speed;
         }
     }
@@ -244,6 +275,7 @@ public class EnemyFSM : MonoBehaviour
     void UpdateFlee()
     {
         currentPath = null;
+        pathFinder.grid.ReportPath(this, currentPath);
         Vector3 direction = transform.position - target.transform.position;
         direction.y = 0;
 
