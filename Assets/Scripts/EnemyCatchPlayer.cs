@@ -3,9 +3,25 @@ using UnityEngine;
 public class EnemyCatchPlayer : MonoBehaviour
 {
     public string playerTag = "Player";
-    void OnTriggerEnter(Collider other)
+    EnemyFSM fsm;
+
+    void Awake() 
+    { 
+        fsm = GetComponentInParent<EnemyFSM>(); 
+    }
+    void OnTriggerEnter(Collider other) 
+    { 
+        TryCatch(other); 
+    }
+    void OnTriggerStay(Collider other) 
+    { 
+        TryCatch(other); 
+    }
+
+    void TryCatch(Collider other)
     {
         if (!other.CompareTag(playerTag)) return;
-        GameManager.Instance.Lose();
+        if (fsm != null && fsm.currentState == EnemyFSM.State.Flee) return;
+        if (GameManager.Instance != null) GameManager.Instance.Lose();
     }
 }
