@@ -902,7 +902,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 128
+    m_Bits: 1152
   gridWorldSize: {x: 80, y: 86}
   nodeRAdius: 0.7
   checkBottom: 0.1

@@ -34,7 +34,7 @@ public class PathGrid : MonoBehaviour
             {
                 Vector3 worldPoint = bottomLeft + Vector3.right * (x * nodeDiameter + nodeRAdius) + Vector3.forward * (z * nodeDiameter + nodeRAdius);
                 Vector3 boxCenter = worldPoint + Vector3.up * (checkBottom + checkHeight / 2f);
-                bool isWall = Physics.CheckBox(boxCenter, halfEx, Quaternion.identity, obstacleMask, QueryTriggerInteraction.Ignore);
+                bool isWall = Physics.CheckBox(boxCenter, halfEx, Quaternion.identity, obstacleMask, QueryTriggerInteraction.Collide);
                 grid[x, z] = new PathNode(isWall, worldPoint, x, z);
             }
         }

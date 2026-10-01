@@ -40,7 +40,8 @@ public class GameManager : MonoBehaviour
         IsGameOver = true;
         StopBGM();
         if (winPanel != null) winPanel.gameObject.SetActive(true);
-        Time.timeScale = 0f; // hentikan game
+        PlayEndSound(winClip);
+        Time.timeScale = 0f; 
     }
     public void Lose()
     {
@@ -48,7 +49,13 @@ public class GameManager : MonoBehaviour
         IsGameOver = true;
         StopBGM();
         if (losePanel != null) losePanel.gameObject.SetActive(true);
+        PlayEndSound(loseClip);
         Time.timeScale = 0f; // hentikan game
+    }
+    void PlayEndSound(AudioClip clip)
+    {
+        if(sfxSource == null || clip == null) return;
+        sfxSource.PlayOneShot(clip);
     }
     public void RestartGame()
     {
