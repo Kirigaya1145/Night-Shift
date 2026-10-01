@@ -280,8 +280,21 @@ public class EnemyFSM : MonoBehaviour
         direction.y = 0;
 
         if (direction.sqrMagnitude < 0.01f) direction = transform.forward;
-        moveVec = direction.normalized;
+        moveVec = FreeDirection(direction.normalized);
         moveSpd = fleeMaxSpd;
+    }
+    Vector3 FreeDirection(Vector3 desired)
+    {
+        float probe = 2.2f;
+        for (int a = 0; a <= 180; a += 30)
+        {
+            for (int s = -1; s <= 1; s += 2)
+            {
+                Vector3 d = Quaternion.AngleAxis(a * s, Vector3.up) * desired;
+                if (pathFinder.grid.FreeDistance(transform.position, d, probe) >= probe) return d;
+            }
+        }
+        return desired;
     }
     void OnDrawGizmosSelected()
     {
