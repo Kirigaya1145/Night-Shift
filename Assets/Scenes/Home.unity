@@ -1529,7 +1529,7 @@ MonoBehaviour:
   homePanel: {fileID: 122745257}
   tutorialPanel: {fileID: 976961942}
   creditPanel: {fileID: 1338114990}
-  gameSceneName: SampleScene
+  gameSceneName: Level 2
 --- !u!4 &901746759
 Transform:
   m_ObjectHideFlags: 0
